@@ -2,6 +2,7 @@
 Display windsnelheid Haringvliet
 
 De windklok bestaat uit 3 componenten:
+
 -Scraper
 -API
 -Display
