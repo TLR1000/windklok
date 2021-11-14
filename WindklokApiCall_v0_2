@@ -1,0 +1,121 @@
+//TODO Nulwaarde gaat max
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecureBearSSL.h>
+#include <Servo.h>
+
+Servo knotsServo;
+Servo tempServo;
+
+const uint8_t fingerprint[20] = {};
+
+ESP8266WiFiMulti WiFiMulti;
+
+//voor de servo besturing
+//----aanpassen wijzerstand na (de-)montage        
+const float knotsServoStartPos = 560; //per servo finetunen 
+const float tempServoStartPos = 660;  //per servo finetunen
+//----vast
+const float servoRange = 1950; //verschil tussen 0 en 180 graden
+const float knotsServoEndPos = knotsServoStartPos + servoRange; //hulpvariabele voor de leesbaarheid       
+const float tempServoEndPos = tempServoStartPos + servoRange; //hulpvariabele voor de leesbaarheid
+const float schaalMax = 30; //maximumwaarde van de schaal van de meters
+float vermFactor; //hulpvariabele voor de leesbaarheid
+int uValue; //microseconden voor servosturing
+
+void setup() {
+  knotsServo.attach(D5);
+  tempServo.attach(D3);
+
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println();
+  Serial.println();
+  for (uint8_t t = 4; t > 0; t--) {
+    Serial.printf("[SETUP] WAIT %d...\n", t);
+    Serial.flush();
+    delay(1000);
+  }
+  WiFi.mode(WIFI_STA);
+  WiFiMulti.addAP("", "");
+}
+
+void loop() {
+  // wait for WiFi connection
+  if ((WiFiMulti.run() == WL_CONNECTED)) {
+    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+    client->setFingerprint(fingerprint);
+    client->setInsecure(); //Negeer SSL certificaat
+    HTTPClient https;
+    https.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    Serial.print("[HTTPS] begin...\n");
+    if (https.begin(*client, "https://script.google.com/macros/s/AKfycbxAsYITZSMF6pBYk_LvXzQ8G8P0igBaJncrJHtZhbE2WwUU3lX_ymBFi7Y13iDl8zE/exec?action=")) {  // HTTPS
+      Serial.print("[HTTPS] GET...\n");
+      // start connection and send HTTP header
+      int httpCode = https.GET();
+      // httpCode will be negative on error
+      if (httpCode > 0) {
+        // HTTP header has been send and Server response header has been handled
+        Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+        String payload = https.getString();
+        Serial.print("payload:"); Serial.println(payload);
+        String msg = payload;
+        msg = msg.substring(1, msg.length() - 1);
+        //quick & dirty parse
+        String part02 = getValue(msg,',',1);
+        String part03 = getValue(msg,',',2);
+        float value02 = getValue(part02,':',1).toFloat();
+        float value03 = getValue(part03,':',1).toFloat();
+        Serial.print("knots:"); Serial.println(value02);
+
+        //Knots servo instellen
+        //convert value
+        if (value02 > 30){
+            value02 = 30;
+          }
+        Serial.print("Knots instellen met meetwaarde ");  Serial.println(value02);
+        vermFactor = value02 / schaalMax;
+        uValue = knotsServoEndPos - (vermFactor * servoRange);
+        delay(10); //no rush
+        knotsServo.writeMicroseconds(uValue);
+        delay(1000); //tijd geven
+
+        //Temp servo instellen.
+        Serial.print("Temp instellen met meetwaarde ");  Serial.println(value03);
+        vermFactor = value03 / schaalMax;
+        uValue = tempServoEndPos - (vermFactor * servoRange);
+        delay(10); //no rush
+        tempServo.writeMicroseconds(uValue);
+        delay(1000); //tijd geven
+                 
+      } else {
+        Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+      }
+      https.end();
+    } else {
+      Serial.printf("[HTTPS] Unable to connect\n");
+    }
+  }
+  Serial.println("Wait 5m before next round...");
+    for (uint8_t t = 5; t > 0; t--) {
+    Serial.printf("Nog %d minuten\n", t);
+    Serial.flush();
+    delay(60000);//1000 in 1 seconde
+  }
+}
+
+String getValue(String data, char separator, int index){
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+        found++;
+        strIndex[0] = strIndex[1]+1;
+        strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
