@@ -1,0 +1,47 @@
+#include <Arduino.h>
+#include <Servo.h>
+
+Servo knotsServo;
+Servo tempServo;
+
+void setup() {
+  knotsServo.attach(D5);
+  tempServo.attach(D3);
+
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println();
+  Serial.println();
+        //----aanpassen wijzerstand na (de-)montage        
+        float knotsServoStartPos = 560; //per servo finetunen 
+        float tempServoStartPos = 660;  //per servo finetunen
+        //----vast
+        float servoRange = 1950; //verschil tussen 0 en 180 graden
+        float knotsServoEndPos = knotsServoStartPos + servoRange; //hulpvariabele voor de leesbaarheid       
+        float tempServoEndPos = tempServoStartPos + servoRange; //hulpvariabele voor de leesbaarheid
+        float vermFactor; //hulpvariabele voor de leesbaarheid
+        float schaalMax = 30; //maximumwaarde van de schaal van de meters
+        int uValue; //microseconden voor servosturing
+        
+        //metinggegevens               
+        float value02 = 15; //knots
+        float value03 = 15; //temp
+
+        //Knots servo instellen.
+        vermFactor = value02 / schaalMax;
+        uValue = knotsServoEndPos - (vermFactor * servoRange);
+        delay(10); //no rush
+        knotsServo.writeMicroseconds(uValue);
+        delay(1000); //tijd geven
+
+        //Temp servo instellen.
+        vermFactor = value03 / schaalMax;
+        uValue = tempServoEndPos - (vermFactor * servoRange);
+        delay(10); //no rush
+        tempServo.writeMicroseconds(uValue);
+        delay(1000); //tijd geven
+
+}
+
+void loop() {
+}
