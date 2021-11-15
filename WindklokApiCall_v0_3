@@ -7,7 +7,7 @@
 #include <Servo.h>
 //config
 #include "credentials.h"  
-
+ 
 Servo knotsServo;
 Servo tempServo;
 
@@ -48,9 +48,13 @@ void setup() {
   }
   //who are we?
   Serial.print(compileFILE); Serial.print(" "); Serial.print(compileDATE); Serial.print(" "); Serial.println(compileTIME);
-  
+
   WiFi.mode(WIFI_STA);
+
+  WiFi.hostname(myhostname); //define hostname  
+  
   WiFiMulti.addAP(ssid, passphrase);
+
 }
 
 void loop() {
