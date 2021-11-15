@@ -6,7 +6,7 @@ char ssid[] = "";
 char passphrase[] = "";
 char myhostname[] = "TEST-Windklok";
 
-//cloudmgqtt server config
+//measurements server config
 char windklokApiEndpoint[] = "https://";
 
 #endif
